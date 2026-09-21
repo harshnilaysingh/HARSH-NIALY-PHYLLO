@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Product Analyst Intern take-home: Meridian API investigation, data-quality findings, revenue calculation, finance response, and bug report.">
+<title>Meridian API Investigation | Harsh Nilay</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#172033;--muted:#667085;--line:#e5e7eb;--accent:#315efb;--soft:#eef2ff;--danger:#b42318;--danger-bg:#fff1f0;--navy:#101828;--navy2:#1d2939}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+.wrap{max-width:1120px;margin:auto;padding:30px 18px 64px}
+.hero{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:24px;padding:42px 40px;margin-bottom:20px;box-shadow:0 18px 50px rgba(16,24,40,.14)}
+.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:12px;color:#c7d2fe;font-weight:800}
+.hero h1{font-size:44px;line-height:1.08;margin:10px 0 10px;letter-spacing:-.02em}
+.hero p{margin:6px 0;color:#d0d5dd}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+.stat,.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+.stat strong{font-size:27px;display:block;letter-spacing:-.02em}
+.stat span{color:var(--muted);font-size:13px}
+.card{margin:18px 0}
+.card h2{margin:0 0 5px;font-size:22px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin-top:0}
+.kicker{display:inline-block;background:#f2f4f7;color:#344054;border:1px solid #e4e7ec;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800;margin-bottom:8px}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;background:#fff;min-width:860px}
+th,td{text-align:left;padding:13px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f8fafc;font-size:13px;color:#344054}
+tr:last-child td{border-bottom:0}
+.impact{color:var(--danger);font-weight:700}
+.finding{border-left:4px solid var(--accent);background:var(--soft);padding:18px;border-radius:10px}
+.finding strong{display:block;margin-bottom:4px}
+.money{font-size:40px;font-weight:850;margin:12px 0 3px;letter-spacing:-.03em}
+.note{font-size:14px;color:var(--muted)}
+.email{background:#fbfcff;border:1px solid var(--line);border-radius:12px;padding:20px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}
+.code{background:#0b1220;color:#e5e7eb;border-radius:12px;padding:18px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;white-space:pre}
+.footer{text-align:center;color:var(--muted);font-size:13px;padding-top:24px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+@media(max-width:760px){.hero{padding:30px 24px}.hero h1{font-size:32px}.grid{grid-template-columns:1fr}.wrap{padding:18px 12px 42px}.card{padding:17px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<section class="hero">
+  <div class="eyebrow">Product Analyst Intern · Final Take-Home Submission</div>
+  <h1>Meridian API Investigation</h1>
+  <p>API, Data Quality &amp; Product Investigation</p>
+  <p><strong>Candidate:</strong> Harsh Nilay</p>
+</section>
+
+<div class="grid" aria-label="Submission summary">
+  <div class="stat"><strong>6</strong><span>Documentation / API-behavior mismatches</span></div>
+  <div class="stat"><strong>$328.03</strong><span>Sum of captured order totals</span></div>
+  <div class="stat"><strong>1</strong><span>Most serious issue: monetary format</span></div>
+</div>
+
+<section class="card">
+  <div class="kicker">Source basis</div>
+  <p class="sub">This analysis uses only the supplied candidate-pack files: <code>API_DOCS.md</code>, <code>README.md</code>, <code>ticket.md</code>, <code>orders_page1.json</code>, <code>orders_page2.json</code>, and <code>order_ord_9999.json</code>.</p>
+</section>
+
+<section class="card">
+  <div class="kicker">Task 1</div>
+  <h2>What Doesn't Match?</h2>
+  <p class="sub">Each finding below compares what the documentation promises with what the captured API responses actually show.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>No.</th><th>What the docs say</th><th>What the data does</th><th>Would it hurt a client?</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>status</code> is one of <code>pending</code>, <code>shipped</code>, <code>delivered</code>, <code>cancelled</code>.</td><td><code>orders_page1.json → data[2].status</code> is <code>refunded</code>.</td><td class="impact">Yes. A client validating the documented enum could reject or mishandle the order.</td></tr>
+        <tr><td>2</td><td>Monetary amounts are integers in the smallest unit of the currency.</td><td><code>orders_page2.json → ord_1006</code> returns <code>subtotal: 44.0</code>, <code>tax: 3.63</code>, <code>shipping: 5.99</code>, <code>total: 53.62</code>.</td><td class="impact">Yes — high impact. Clients following the contract can misread the units and calculate financial values incorrectly.</td></tr>
+        <tr><td>3</td><td><code>customer.email</code> is always present.</td><td><code>orders_page2.json → ord_1005.customer.email</code> is <code>null</code>.</td><td class="impact">Yes. Consumers expecting a string may fail validation or downstream processing.</td></tr>
+        <tr><td>4</td><td>A missing order returns HTTP 404.</td><td><code>order_ord_9999.json</code> returns <code>{"order": null}</code>; <code>README.md</code> records HTTP 200 for <code>GET /v1/orders/ord_9999</code>.</td><td class="impact">Yes. Clients may treat a missing order as a successful lookup.</td></tr>
+        <tr><td>5</td><td>Orders are returned most-recent-first.</td><td>The <code>created_at</code> values in <code>orders_page1.json</code> and <code>orders_page2.json</code> increase from March 14 through March 16, so the captured sequence is oldest-to-newest.</td><td class="impact">Yes. A client relying on documented ordering may process or display records incorrectly.</td></tr>
+        <tr><td>6</td><td><code>has_more</code> determines whether another page should be requested.</td><td>Page 1 has <code>has_more: false</code> but also provides <code>next_cursor</code>, and page 2 exists.</td><td class="impact">Yes. A client following <code>has_more</code> could stop early and miss later orders.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card">
+  <div class="kicker">Task 1 · Priority</div>
+  <h2>Most Serious Finding</h2>
+  <div class="finding"><strong>Monetary-format mismatch in <code>ord_1006</code></strong>The API contract says monetary fields are integer values in the currency's smallest unit, but <code>ord_1006</code> contains decimal currency values. A consumer implementing the documented contract could interpret the amount incorrectly, causing material errors in reconciliation, reporting, or downstream financial processing.</div>
+</section>
+
+<section class="card">
+  <div class="kicker">Task 2</div>
+  <h2>What's the Total Revenue?</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Order</th><th>Order total</th></tr></thead>
+      <tbody>
+        <tr><td><code>ord_1001</code></td><td>$54.70</td></tr>
+        <tr><td><code>ord_1002</code></td><td>$23.81</td></tr>
+        <tr><td><code>ord_1003</code></td><td>$102.33</td></tr>
+        <tr><td><code>ord_1004</code></td><td>$68.10</td></tr>
+        <tr><td><code>ord_1005</code></td><td>$25.47</td></tr>
+        <tr><td><code>ord_1006</code></td><td>$53.62</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="money">$328.03</div>
+  <p class="note"><strong>Calculation:</strong> The six captured order totals sum to $328.03.</p>
+  <p class="note"><strong>Choice made:</strong> <code>ord_1001</code>–<code>ord_1005</code> follow the documented smallest-unit format, so their integer totals are converted from cents to dollars. <code>ord_1006</code> is inconsistent, but its <code>subtotal + tax + shipping</code> reconciles exactly as <code>$44.00 + $3.63 + $5.99 = $53.62</code>, so I treat its reported <code>53.62</code> as $53.62 for this calculation.</p>
+  <p class="note"><strong>Limitation:</strong> <code>ord_1003</code> is marked <code>refunded</code>, but the supplied data gives no refund amount. Therefore, $328.03 is the sum of the captured order totals — exact net revenue cannot be confirmed from the supplied data alone.</p>
+</section>
+
+<section class="card">
+  <div class="kicker">Task 3A</div>
+  <h2>Reply to Priya</h2>
+  <div class="email">
+    <div class="label">Subject</div>
+    <p><strong>Revenue discrepancy</strong></p>
+    <p>Hi Priya,</p>
+    <p>Thanks for flagging this. I reviewed the captured API responses and found two issues relevant to reconciliation: one order is marked <code>refunded</code>, and <code>ord_1006</code> uses decimal monetary values even though the API documents amounts as integer values in the smallest currency unit.</p>
+    <p>The captured orders sum to $328.03 when <code>ord_1006</code>'s reported <code>53.62</code> is treated as $53.62. I cannot confirm the exact dashboard difference because the supplied data does not include the dashboard total or the refund amount for <code>ord_1003</code>.</p>
+    <p>For reconciliation, I would have the monetary values for <code>ord_1006</code> returned in the documented smallest-unit integer format and review the refunded order before treating the API total as confirmed net revenue.</p>
+    <p>Best,<br>Harsh Nilay</p>
+  </div>
+</section>
+
+<section class="card">
+  <div class="kicker">Task 3B</div>
+  <h2>Bug Report</h2>
+  <p><strong>Title:</strong> Order API returns monetary values in an inconsistent format</p>
+  <p><strong>Problem:</strong> <code>orders_page2.json</code> returns <code>ord_1006</code> with decimal monetary values although the API documentation requires integer amounts in the currency's smallest unit.</p>
+  <div class="code">Actual response:
+subtotal = 44.0
+tax = 3.63
+shipping = 5.99
+total = 53.62
+unit_price = 44.0
+
+Expected for USD:
+subtotal = 4400
+tax = 363
+shipping = 599
+total = 5362
+unit_price = 4400</div>
+  <p><strong>Impact:</strong> Clients implementing the documented contract may interpret these values incorrectly, affecting revenue calculations, reconciliation, reporting, and downstream financial processing.</p>
+  <p><strong>Fix:</strong> Return all monetary fields consistently in the documented smallest-unit integer format, then audit affected records and downstream consumers for unit-handling errors.</p>
+</section>
+
+<div class="footer">Meridian API Investigation · Product Analyst Intern · Harsh Nilay</div>
+</main>
+</body>
+</html>
