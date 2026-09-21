@@ -1,4 +1,4 @@
-r# Phyllo Product Analyst Intern — Take-Home Assignment
+# Phyllo Product Analyst Intern — Take-Home Assignment
 
 ## Meridian API Investigation
 
